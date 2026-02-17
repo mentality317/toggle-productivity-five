@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Toggle Productivity Five</title>
+  <style>
+    :root{
+      --bg:#050505;
+      --green:#11d318;
+      --red:#520404;
+      --yellow:#ffe100;
+      --blue:#071c8a;
+      --blueActive:#0b66ff;
+      --outline:rgba(255,255,255,0.06);
+      --shadow:0 10px 30px rgba(0,0,0,0.55);
+      --radius:10px;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 50% 35%, rgba(255,255,255,0.05), transparent 55%), var(--bg);
+      color:#f2f2f2;
+      user-select:none;
+    }
+
+    .wrap{
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .panel{
+      width:min(520px, 92vw);
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      align-items:center;
+    }
+
+    .timerRow{
+      width:100%;
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
+      padding:6px 2px;
+    }
+
+    .timerLabel{
+      font-size:12px;
+      opacity:0.7;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+    }
+
+    .timer{
+      font-variant-numeric: tabular-nums;
+      font-size:44px;
+      line-height:1;
+      letter-spacing:0.02em;
+    }
+
+    .status{
+      text-align:right;
+      font-size:12px;
+      opacity:0.8;
+      line-height:1.2;
+      padding-bottom:6px;
+    }
+
+    .stack{
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      gap:22px;
+      align-items:flex-start;
+      padding:10px 0 6px;
+    }
+
+    .taskBtn{
+      width:260px;
+      height:92px;
+      border-radius: var(--radius);
+      border:1px solid var(--outline);
+      box-shadow: var(--shadow);
+      cursor:pointer;
+      transition: transform 120ms ease, filter 120ms ease, opacity 120ms ease;
+      outline:none;
+      position:relative;
+      margin-left:4px;
+    }
+
+    .taskBtn::after{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      border-radius: calc(var(--radius) + 2px);
+      pointer-events:none;
+      opacity:0.65;
+      filter: blur(0.2px);
+      border:2px solid transparent;
+    }
+
+    .taskBtn.green{ background: var(--green); }
+    .taskBtn.red{ background: var(--red); }
+
+    .taskBtn.green::after{ border-color: rgba(17,211,24,0.65); }
+    .taskBtn.red::after{ border-color: rgba(255,0,0,0.50); }
+
+    .taskBtn:active{ transform: scale(0.985); }
+
+    .taskBtn.disabled{
+      cursor:not-allowed;
+      opacity:0.45;
+      filter:saturate(0.8);
+    }
+
+    .bottomRow{
+      width:100%;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:18px;
+      margin-top:8px;
+      padding-top:6px;
+    }
+
+    .controlBtn{
+      width:260px;
+      height:92px;
+      border-radius: var(--radius);
+      border:1px solid var(--outline);
+      box-shadow: var(--shadow);
+      cursor:pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+      outline:none;
+      position:relative;
+    }
+
+    .controlBtn:active{ transform: scale(0.985); }
+
+    .startStop{
+      background: var(--yellow);
+      color:#0b0b0b;
+      font-weight:700;
+      letter-spacing:0.02em;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:18px;
+    }
+
+    .reset{
+      background: var(--blue);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:18px;
+      font-weight:700;
+      letter-spacing:0.02em;
+    }
+
+    .reset.active{
+      background: var(--blueActive);
+    }
+
+    .hint{
+      width:100%;
+      opacity:0.65;
+      font-size:12px;
+      line-height:1.35;
+      margin-top:2px;
+    }
+
+    .pill{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.14);
+      opacity:0.9;
+      font-size:11px;
+      margin-left:8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <div class="timerRow">
+        <div>
+          <div class="timerLabel">Session Timer</div>
+          <div class="timer" id="timer">00:00</div>
+        </div>
+        <div class="status" id="status">
+          <div>Tasks: <span id="doneCount">0</span>/5</div>
+          <div id="runState">Stopped</div>
+        </div>
+      </div>
+
+      <div class="stack" id="taskStack" aria-label="Tasks"></div>
+
+      <div class="bottomRow">
+        <button class="controlBtn startStop" id="startStopBtn" type="button">
+          Start <span class="pill" id="holdHint">Hold to reset</span>
+        </button>
+
+        <button class="controlBtn reset" id="resetBtn" type="button">
+          Reset Tasks
+        </button>
+      </div>
+
+      <div class="hint">
+        Click tasks top to bottom to complete them.
+        Start stops the timer, hold Start for about 0.8s to reset the timer.
+        Reset Tasks turns all tasks back to red.
+        Everything saves automatically, so reopening the file continues where you left off.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Today (local): 2026-02-17
+    const STORAGE_KEY = "toggle_productivity_five_v1";
+
+    const DEFAULT_STATE = {
+      tasks: [false, false, false, false, false], // false=red, true=green
+      timer: {
+        running: false,
+        elapsedMs: 0,      // accumulated while stopped
+        startedAt: null    // epoch ms when last started, if running
+      }
+    };
+
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return structuredClone(DEFAULT_STATE);
+        const parsed = JSON.parse(raw);
+
+        const tasks = Array.isArray(parsed?.tasks) && parsed.tasks.length === 5
+          ? parsed.tasks.map(Boolean)
+          : structuredClone(DEFAULT_STATE.tasks);
+
+        const t = parsed?.timer || {};
+        const running = Boolean(t.running);
+        const elapsedMs = Number.isFinite(t.elapsedMs) ? Math.max(0, t.elapsedMs) : 0;
+        const startedAt = (t.startedAt === null || Number.isFinite(t.startedAt)) ? t.startedAt : null;
+
+        return { tasks, timer: { running, elapsedMs, startedAt } };
+      }catch{
+        return structuredClone(DEFAULT_STATE);
+      }
+    }
+
+    function saveState(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function nowMs(){ return Date.now(); }
+
+    function getElapsedMs(){
+      if(!state.timer.running) return state.timer.elapsedMs;
+      const startedAt = state.timer.startedAt ?? nowMs();
+      return state.timer.elapsedMs + (nowMs() - startedAt);
+    }
+
+    function fmt(ms){
+      const totalSec = Math.floor(ms / 1000);
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      const mm = String(m).padStart(2, "0");
+      const ss = String(s).padStart(2, "0");
+      return `${mm}:${ss}`;
+    }
+
+    function startTimer(){
+      if(state.timer.running) return;
+      state.timer.running = true;
+      state.timer.startedAt = nowMs();
+      saveState();
+      render();
+    }
+
+    function stopTimer(){
+      if(!state.timer.running) return;
+      state.timer.elapsedMs = getElapsedMs();
+      state.timer.running = false;
+      state.timer.startedAt = null;
+      saveState();
+      render();
+    }
+
+    function resetTimer(){
+      state.timer.running = false;
+      state.timer.elapsedMs = 0;
+      state.timer.startedAt = null;
+      saveState();
+      render();
+    }
+
+    function firstIncompleteIndex(){
+      return state.tasks.findIndex(v => !v);
+    }
+
+    function setAllTasks(val){
+      state.tasks = state.tasks.map(() => Boolean(val));
+      saveState();
+      render();
+    }
+
+    function completeTask(i){
+      const idx = firstIncompleteIndex();
+      if(idx === -1) return;
+      if(i !== idx) return;
+
+      state.tasks[i] = true;
+      saveState();
+      render();
+    }
+
+    const taskStack = document.getElementById("taskStack");
+    const timerEl = document.getElementById("timer");
+    const doneCountEl = document.getElementById("doneCount");
+    const runStateEl = document.getElementById("runState");
+    const startStopBtn = document.getElementById("startStopBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    let state = loadState();
+
+    function render(){
+      timerEl.textContent = fmt(getElapsedMs());
+      const done = state.tasks.filter(Boolean).length;
+      doneCountEl.textContent = String(done);
+      runStateEl.textContent = state.timer.running ? "Running" : "Stopped";
+      startStopBtn.firstChild.nodeValue = state.timer.running ? "Stop " : "Start ";
+
+      taskStack.innerHTML = "";
+      const activeIdx = firstIncompleteIndex();
+
+      for(let i=0;i<5;i++){
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "taskBtn " + (state.tasks[i] ? "green" : "red");
+
+        const isDisabled = state.tasks[i] || (activeIdx !== -1 && i !== activeIdx);
+        if(isDisabled){
+          btn.classList.add("disabled");
+          btn.setAttribute("aria-disabled","true");
+          btn.tabIndex = -1;
+        }else{
+          btn.addEventListener("click", () => completeTask(i));
+        }
+
+        btn.setAttribute("aria-label", `Task ${i+1} ${state.tasks[i] ? "complete" : "incomplete"}`);
+        taskStack.appendChild(btn);
+      }
+    }
+
+    function tick(){
+      timerEl.textContent = fmt(getElapsedMs());
+      requestAnimationFrame(tick);
+    }
+
+    let holdTimer = null;
+    let holding = false;
+    const HOLD_MS = 800;
+
+    function clearHold(){
+      if(holdTimer){
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+      holding = false;
+    }
+
+    startStopBtn.addEventListener("pointerdown", () => {
+      clearHold();
+      holding = true;
+      holdTimer = setTimeout(() => {
+        resetTimer();
+        clearHold();
+      }, HOLD_MS);
+    });
+
+    startStopBtn.addEventListener("pointerup", () => {
+      if(!holding) return;
+
+      const wasHoldPending = Boolean(holdTimer);
+      clearHold();
+
+      if(wasHoldPending){
+        if(state.timer.running) stopTimer();
+        else startTimer();
+      }
+    });
+
+    startStopBtn.addEventListener("pointerleave", clearHold);
+    startStopBtn.addEventListener("pointercancel", clearHold);
+
+    resetBtn.addEventListener("click", () => {
+      resetBtn.classList.add("active");
+      setTimeout(() => resetBtn.classList.remove("active"), 140);
+      setAllTasks(false);
+    });
+
+    render();
+    tick();
+    window.addEventListener("beforeunload", () => saveState());
+  </script>
+</body>
+</html>
